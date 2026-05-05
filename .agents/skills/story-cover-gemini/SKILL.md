@@ -1,28 +1,24 @@
 ---
 name: story-cover-gemini
-version: 1.0.0
+version: 2.0.0
 description: |
-  通过 Gemini 网页版生成小说封面。使用 CDP 自动化操作已登录的 Edge 浏览器，在 Gemini 中输入封面提示词，自动生成并下载封面图片。
+  通过 Gemini 网页版生成小说封面。根据书名、题材、平台自动构建专业封面提示词，用户复制到 Gemini 手动生成。
   触发方式：/story-cover-gemini、/封面gemini、「用Gemini做封面」「Gemini封面」
 metadata:
   openclaw:
     requires:
-      bins:
-        - node
-      skills:
-        - browser-cdp
+      bins: []
+      skills: []
 ---
 
 # story-cover-gemini：通过 Gemini 网页版生成封面
 
-你是小说封面设计师。根据书名和题材，通过 Gemini 网页版一次性生成包含书名和作者名的完整封面。
+你是小说封面设计师。根据书名和题材，构建专业英文提示词，用户复制到 Gemini 网页版生成包含书名和作者名的完整封面。
 
 **核心原则：封面是读者的第一印象，一眼传达题材和氛围。**
 
 **前置条件**：
-- 用户已在 Edge 浏览器登录 Gemini 账号
-- Node.js v22+ 已安装
-- browser-cdp skill 可用
+- 用户已在浏览器登录 Gemini 账号（gemini.google.com）
 
 ---
 
@@ -131,224 +127,45 @@ Professional book cover, high detail digital painting, portrait 2:3 ratio, no wa
 
 ---
 
-### Step 3：Gemini 网页自动化
+### Step 3：输出提示词 + 操作指引
 
-通过 CDP 协议控制已登录的 Edge 浏览器，在 Gemini 中生成封面并自动下载。
+#### 3.1 输出完整提示词
 
-#### 3.1 启动 CDP 浏览器
+将 Step 2 构建的提示词以 **代码块** 形式完整输出，方便用户一键复制。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File "{browser-cdp skill dir}/scripts/setup_cdp_windows.ps1" 9222
-```
-
-等待 CDP 端口就绪。此脚本会复用用户已有的 Edge 登录态。
-
-#### 3.2 打开 Gemini
-
-使用 cdp-utils.js 打开 Gemini 页面：
-
-```js
-const { ab, sleep } = require("{shared scripts dir}/cdp-utils.js");
-ab(9222, "open", "https://gemini.google.com/");
-sleep(5000);
-```
-
-#### 3.3 定位输入区域
-
-Gemini 的输入区域是 `contenteditable` 元素。CSS 选择器按优先级尝试：
+输出格式：
 
 ```
-优先级 1: div.ql-editor[contenteditable="true"]
-优先级 2: rich-textarea div[contenteditable="true"]
-优先级 3: div[contenteditable="true"][aria-label*="prompt"]
-优先级 4: div[contenteditable="true"]（取最后一个，通常是输入框）
+📋 **封面提示词**（复制以下内容到 Gemini）
+
+\`\`\`
+{完整英文提示词}
+\`\`\`
 ```
 
-通过 CDP eval 定位并输入提示词：
+#### 3.2 Gemini 操作步骤
 
-```js
-const { evalJSON, safeStr } = require("{shared scripts dir}/cdp-utils.js");
+向用户说明操作步骤：
 
-const prompt = safeStr(PROMPT_TEXT);
+1. 打开 [Gemini](https://gemini.google.com/)（确保已登录）
+2. 将提示词粘贴到输入框
+3. 发送，等待 30-90 秒生成图片
+4. 生成完成后，选择满意的结果下载
 
-// 尝试多种选择器定位输入框
-const js = `
-(function() {
-  var selectors = [
-    'div.ql-editor[contenteditable="true"]',
-    'rich-textarea div[contenteditable="true"]',
-    'div[contenteditable="true"][aria-label*="prompt"]'
-  ];
-  var el = null;
-  for (var i = 0; i < selectors.length; i++) {
-    var found = document.querySelector(selectors[i]);
-    if (found && found.offsetParent !== null) { el = found; break; }
-  }
-  if (!el) {
-    var all = document.querySelectorAll('div[contenteditable="true"]');
-    el = all[all.length - 1];
-  }
-  if (!el) return JSON.stringify({ok: false, error: "input not found"});
-  el.focus();
-  el.innerText = ${prompt};
-  el.dispatchEvent(new Event('input', {bubbles: true}));
-  return JSON.stringify({ok: true});
-})()
-`;
-
-const result = evalJSON(9222, js);
-if (!result || !result.ok) {
-  // 提示用户手动操作
-}
-```
-
-#### 3.4 发送提示词
-
-找到发送按钮并点击：
-
-```js
-const clickJs = `
-(function() {
-  var selectors = [
-    'button[aria-label*="Send"]',
-    'button[aria-label*="send"]',
-    'button[aria-label*="Submit"]',
-    '.send-button'
-  ];
-  for (var i = 0; i < selectors.length; i++) {
-    var btn = document.querySelector(selectors[i]);
-    if (btn && !btn.disabled) { btn.click(); return JSON.stringify({ok: true}); }
-  }
-  return JSON.stringify({ok: false, error: "send button not found"});
-})()
-`;
-
-evalJSON(9222, clickJs);
-```
-
-#### 3.5 等待图片生成
-
-Gemini 图片生成通常需要 30-90 秒。发送前先记录当前 `<img>` 数量，然后轮询检测新图片：
-
-```js
-// 发送前记录图片数量
-const beforeCount = evalJSON(9222, "JSON.stringify(document.querySelectorAll('img').length)");
-
-// 轮询等待（最多 120 秒，每 5 秒检查一次）
-for (let attempt = 0; attempt < 24; attempt++) {
-  sleep(5000);
-
-  const checkJs = `
-    (function() {
-      var imgs = document.querySelectorAll('img');
-      var newImgs = [];
-      for (var i = ${beforeCount}; i < imgs.length; i++) {
-        var img = imgs[i];
-        if (img.naturalWidth > 200 && img.naturalHeight > 200 && img.src.length > 50) {
-          newImgs.push({src: img.src, w: img.naturalWidth, h: img.naturalHeight});
-        }
-      }
-      return JSON.stringify(newImgs);
-    })()
-  `;
-
-  const newImages = evalJSON(9222, checkJs);
-  if (newImages && newImages.length > 0) {
-    // 找到生成的图片
-    break;
-  }
-}
-```
-
-#### 3.6 提取并下载图片
-
-检测到新图片后，提取第一个大图的 URL 并下载：
-
-```js
-// 提取图片 URL
-const imgJs = `
-  (function() {
-    var imgs = document.querySelectorAll('img');
-    var candidates = [];
-    for (var i = 0; i < imgs.length; i++) {
-      var img = imgs[i];
-      if (img.naturalWidth > 200 && img.naturalHeight > 200 && img.src.length > 50) {
-        candidates.push({src: img.src, w: img.naturalWidth, h: img.naturalHeight, alt: img.alt || ''});
-      }
-    }
-    candidates.sort(function(a,b) { return (b.w * b.h) - (a.w * a.h); });
-    return JSON.stringify(candidates[0] || null);
-  })()
-`;
-
-const imgInfo = evalJSON(9222, imgJs);
-```
-
-下载策略根据 URL 类型区分：
-
-**https:// URL**（CDN 地址，直接用 Node.js fetch 下载）：
-
-```js
-const fs = require('fs');
-const path = require('path');
-
-const response = await fetch(imgInfo.src);
-const buffer = Buffer.from(await response.arrayBuffer());
-
-const coverDir = path.join(BOOK_DIR, '封面');
-fs.mkdirSync(coverDir, { recursive: true });
-fs.writeFileSync(path.join(coverDir, '封面_v1.png'), buffer);
-```
-
-**blob: URL**（本地 blob，通过 CDP 在浏览器内转换为 base64 再提取）：
-
-```js
-const b64Js = `
-  (function() {
-    return new Promise(function(resolve) {
-      var img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = function() {
-        var canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(JSON.stringify({ok: true, data: canvas.toDataURL('image/png').split(',')[1]}));
-      };
-      img.onerror = function() { resolve(JSON.stringify({ok: false})); };
-      img.src = ${safeStr(imgInfo.src)};
-    });
-  })()
-`;
-
-const b64Result = evalJSON(9220, b64Js);
-if (b64Result && b64Result.ok) {
-  const buffer = Buffer.from(b64Result.data, 'base64');
-  fs.writeFileSync(path.join(coverDir, '封面_v1.png'), buffer);
-}
-```
-
-#### 3.7 确认下载成功
-
-下载完成后，使用 Read 工具查看生成的封面图片文件，确认：
-- 文件存在且非空
-- 图片可正常显示
-
-#### 故障处理
+#### 3.3 故障处理
 
 | 问题 | 处理方式 |
 |------|---------|
-| CDP 端口未监听 | 重新运行 setup_cdp_windows.ps1 |
-| 找不到输入框 | 提示用户手动操作浏览器，给出提示词让用户复制粘贴 |
-| 发送按钮未找到 | 提示用户按 Enter 键发送 |
-| 120 秒内未检测到图片 | 提示用户图片可能仍在生成，手动等待后告知 agent |
-| 图片 URL 提取失败 | 提示用户右键保存图片，告知保存路径 |
-| Gemini 要求登录 | 提示用户在 Edge 中手动登录 Gemini 后重试 |
-| Gemini 拒绝生成（安全过滤） | 调整提示词，去掉可能触发过滤的描述，重试 |
+| Gemini 拒绝生成（安全过滤） | 调整提示词，去掉可能触发过滤的描述，重新输出 |
+| 文字渲染错误/乱码 | 调整书名描述方式，尝试拆分书名或换字体风格 |
+| 风格不符合预期 | 更换构图方案、调整色调、换字体风格或平台风格 |
+| 需要多版选择 | 输出 2-3 个不同提示词变体，用户分别生成后对比 |
 
 ---
 
 ### Step 4：质量检查 + 迭代
+
+用户生成封面后，可将图片发给 agent 进行评估。
 
 | 检查项 | 标准 |
 |:-------|:-----|
@@ -357,7 +174,7 @@ if (b64Result && b64Result.ok) {
 | 构图合理 | 主体突出，文字不遮挡核心画面 |
 | 平台适配 | 符合目标平台的封面风格调性 |
 
-不满意时调整方向：更换构图、调整色调、换字体风格、换平台风格。
+不满意时调整方向：更换构图、调整色调、换字体风格、换平台风格。修改后重新输出提示词。
 
 ---
 
