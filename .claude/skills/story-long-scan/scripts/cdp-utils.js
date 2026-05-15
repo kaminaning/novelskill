@@ -2,8 +2,8 @@
 /**
  * cdp-utils.js — delegates to the shared CDP utility module.
  *
- * The real implementation lives at .agents/shared/scripts/cdp-utils.js
+ * The real implementation lives at .claude/shared/scripts/cdp-utils.js
  * to avoid code duplication across skills.
  */
 
-module.exports = require("../../../../.agents/shared/scripts/cdp-utils.js");
+module.exports = require("../../../shared/scripts/cdp-utils.js");

@@ -22,7 +22,7 @@
 claude skills add --from github worldwonderer/oh-story-claudecode
 ```
 
-安装完成后，`.claude/skills/` 和 `.agents/skills/` 目录下会生成对应的技能文件。
+安装完成后，`.claude/skills/` 目录下会生成对应的技能文件。
 
 ---
 
@@ -237,9 +237,9 @@ novels/{书名}/
 
 扫榜功能依赖浏览器自动化，使用前需要先启动 Chrome/Edge 的调试模式：
 
-**Windows**：运行 `.agents/skills/browser-cdp/scripts/setup_cdp_windows.ps1`
+**Windows**：运行 `.claude/skills/browser-cdp/scripts/setup_cdp_windows.ps1`
 
-**macOS**：运行 `.agents/skills/browser-cdp/scripts/setup_cdp_chrome.sh`
+**macOS**：运行 `.claude/skills/browser-cdp/scripts/setup_cdp_chrome.sh`
 
 启动后 Claude 可通过 CDP 协议控制浏览器，复用已有登录态访问各平台。
 
@@ -249,17 +249,13 @@ novels/{书名}/
 
 ```
 novelskill/
-├── .agents/                  # 技能定义（源文件）
+├── .claude/                  # Claude Code 技能目录
 │   ├── shared/scripts/       # 共享脚本（CDP 工具库）
 │   └── skills/               # 11 个技能目录
-├── .claude/                  # Claude Code 运行时目录（.agents 的镜像）
-│   ├── shared/
-│   └── skills/
 ├── analyze-data/             # 拆文输出目录
 ├── novels/                   # 写作项目目录
 ├── scan-data/                # 扫榜输出目录
-├── test/                     # 测试套件
-└── skills-lock.json          # 技能版本锁定
+└── test/                     # 测试套件
 ```
 
 ---

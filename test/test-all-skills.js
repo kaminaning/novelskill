@@ -25,8 +25,6 @@
  *   T20 Reference 文件无平台特定命令
  *   T21 所有 scraper 脚本内部使用跨平台 API
  *   T22 运行时验证 (safeStr, evalJSON 解析链, 中文文件名, JS 注入)
- *   T23 .claude/skills/ symlink 验证
- *   T24 {SKILL_DIR} 路径解析验证
  *   T25 输出路径规范存在性（6 个 skill 的 SKILL.md 都包含路径规范章节）
  *   T26 输出基础目录存在（scan-data/、analyze-data/、novels/）
  *   T27 会话/书籍文件夹命名规范（scan 用 YYYYMMDD_HHmm，其他用标题）
@@ -41,9 +39,9 @@
 const fs = require("fs");
 const path = require("path");
 
-const AGENTS_DIR = path.resolve(__dirname, "..", ".agents");
-const SKILLS_DIR = path.join(AGENTS_DIR, "skills");
-const SHARED_DIR = path.join(AGENTS_DIR, "shared");
+const CLAUDE_DIR = path.resolve(__dirname, "..", ".claude");
+const SKILLS_DIR = path.join(CLAUDE_DIR, "skills");
+const SHARED_DIR = path.join(CLAUDE_DIR, "shared");
 
 const LIVE = process.argv.includes("--live");
 const PORT = process.argv.find((a, i) => process.argv[i - 1] === "--port") || "9222";
@@ -90,7 +88,7 @@ function testT1() {
   ];
 
   for (const rel of jsFiles) {
-    const abs = path.join(AGENTS_DIR, rel);
+    const abs = path.join(CLAUDE_DIR, rel);
     try {
       const mod = require(abs);
       assert(typeof mod === "object" || typeof mod === "function", `${rel} require() returns object/function`);
@@ -112,7 +110,7 @@ function testT1() {
   ];
 
   for (const rel of scraperFiles) {
-    const abs = path.join(AGENTS_DIR, rel);
+    const abs = path.join(CLAUDE_DIR, rel);
     // Use node --check to validate syntax without executing
     try {
       const { execSync } = require("child_process");
@@ -312,9 +310,9 @@ function testT6() {
     return results;
   }
 
-  const mdFiles = walkMd(AGENTS_DIR);
+  const mdFiles = walkMd(CLAUDE_DIR);
   for (const f of mdFiles) {
-    const rel = path.relative(AGENTS_DIR, f);
+    const rel = path.relative(CLAUDE_DIR, f);
     const stat = fs.statSync(f);
     assert(stat.size > 0, `${rel} is non-empty (${stat.size} bytes)`);
   }
@@ -743,10 +741,10 @@ function testT19() {
     return results;
   }
 
-  const allFiles = [...walkFiles(AGENTS_DIR, ".md"), ...walkFiles(AGENTS_DIR, ".js")];
+  const allFiles = [...walkFiles(CLAUDE_DIR, ".md"), ...walkFiles(CLAUDE_DIR, ".js")];
 
   for (const f of allFiles) {
-    const rel = path.relative(AGENTS_DIR, f);
+    const rel = path.relative(CLAUDE_DIR, f);
     const content = fs.readFileSync(f, "utf-8");
 
     // No <browser-cdp skill> placeholder — must use {SKILL_DIR}/../browser-cdp/
@@ -791,7 +789,7 @@ function testT20() {
     return results;
   }
 
-  const refDir = path.join(AGENTS_DIR, "skills");
+  const refDir = path.join(CLAUDE_DIR, "skills");
   const mdFiles = walkMd(refDir).filter((f) => f.includes(path.sep + "references" + path.sep));
 
   const platformCmds = [
@@ -810,7 +808,7 @@ function testT20() {
 
   let totalChecked = 0;
   for (const f of mdFiles) {
-    const rel = path.relative(AGENTS_DIR, f);
+    const rel = path.relative(CLAUDE_DIR, f);
     const content = fs.readFileSync(f, "utf-8");
     totalChecked++;
 
@@ -851,7 +849,7 @@ function testT21() {
   ];
 
   for (const rel of scrapers) {
-    const abs = path.join(AGENTS_DIR, rel);
+    const abs = path.join(CLAUDE_DIR, rel);
     const content = fs.readFileSync(abs, "utf-8");
     const name = path.basename(rel);
 
@@ -980,7 +978,7 @@ function testT22() {
   ];
 
   for (const rel of scraperFiles) {
-    const src = fs.readFileSync(path.join(AGENTS_DIR, rel), "utf-8");
+    const src = fs.readFileSync(path.join(CLAUDE_DIR, rel), "utf-8");
     const name = path.basename(rel);
 
     // Must have ab(), sleep(), evalJSON() calls
@@ -997,115 +995,6 @@ function testT22() {
   const helperSrc = fs.readFileSync(path.join(SHARED_DIR, "scripts", "cdp-helper.mjs"), "utf-8");
   assert(helperSrc.includes("returnByValue: true"), "cdp-helper uses returnByValue for value extraction");
   assert(helperSrc.includes("JSON.stringify(result)"), "cdp-helper JSON.stringifies CDP result");
-}
-
-// ---------------------------------------------------------------------------
-// T23: .claude/skills/ symlink/junction 验证
-// ---------------------------------------------------------------------------
-
-function testT23() {
-  section("T23: .claude/skills/ symlink 验证");
-
-  const claudeSkillsDir = path.resolve(AGENTS_DIR, "..", ".claude", "skills");
-
-  if (!fs.existsSync(claudeSkillsDir)) {
-    // .claude/skills/ may not exist in all environments
-    skip(".claude/skills/ directory not found");
-    return;
-  }
-
-  const expectedSkills = [
-    "browser-cdp", "story-cover", "story-deslop",
-    "story-long-analyze", "story-long-scan", "story-long-write",
-    "story-short-analyze", "story-short-scan", "story-short-write",
-  ];
-
-  for (const skill of expectedSkills) {
-    const linkPath = path.join(claudeSkillsDir, skill);
-    assert(fs.existsSync(linkPath),
-      `.claude/skills/${skill} exists`);
-
-    // Verify symlink resolves to .agents/skills/{skill}
-    try {
-      const resolved = fs.realpathSync(linkPath);
-      assert(resolved.includes("skills" + path.sep + skill),
-        `.claude/skills/${skill} resolves to correct target`);
-
-      // Verify SKILL.md accessible through symlink
-      const skillMd = path.join(resolved, "SKILL.md");
-      assert(fs.existsSync(skillMd),
-        `.claude/skills/${skill}/SKILL.md accessible via symlink`);
-    } catch (e) {
-      assert(false, `.claude/skills/${skill} resolve error: ${e.message}`);
-    }
-  }
-
-  // Verify require() works through symlink path
-  const symlinkCdp = path.join(claudeSkillsDir, "story-long-scan", "scripts", "cdp-utils.js");
-  if (fs.existsSync(symlinkCdp)) {
-    try {
-      const mod = require(symlinkCdp);
-      assert(typeof mod.ab === "function",
-        "cdp-utils.js require() works through symlink path");
-    } catch (e) {
-      assert(false, `cdp-utils.js require() through symlink failed: ${e.message}`);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// T24: {SKILL_DIR}/../browser-cdp/ 路径解析验证
-// ---------------------------------------------------------------------------
-
-function testT24() {
-  section("T24: {SKILL_DIR} 路径解析");
-
-  // When Claude Code resolves {SKILL_DIR}, it uses the skill's directory
-  // Test that {SKILL_DIR}/../browser-cdp/scripts/ resolves from both .agents/ and .claude/ paths
-
-  const claudeSkillsDir = path.resolve(AGENTS_DIR, "..", ".claude", "skills");
-  const testBases = [
-    path.join(AGENTS_DIR, "skills", "story-long-scan"),
-    path.join(AGENTS_DIR, "skills", "story-short-scan"),
-  ];
-
-  // Add .claude/skills/ paths if they exist
-  if (fs.existsSync(claudeSkillsDir)) {
-    testBases.push(
-      path.join(claudeSkillsDir, "story-long-scan"),
-      path.join(claudeSkillsDir, "story-short-scan"),
-    );
-  }
-
-  for (const base of testBases) {
-    const label = base.includes(".claude") ? ".claude" : ".agents";
-    const skillName = path.basename(base);
-
-    const shPath = path.join(base, "..", "browser-cdp", "scripts", "setup_cdp_chrome.sh");
-    const ps1Path = path.join(base, "..", "browser-cdp", "scripts", "setup_cdp_windows.ps1");
-
-    assert(fs.existsSync(shPath),
-      `[${label}] ${skillName}/../browser-cdp/scripts/setup_cdp_chrome.sh exists`);
-    assert(fs.existsSync(ps1Path),
-      `[${label}] ${skillName}/../browser-cdp/scripts/setup_cdp_windows.ps1 exists`);
-  }
-
-  // Verify all {SKILL_DIR} references in SKILL.md files resolve to existing files
-  const skillsWithDirRef = ["browser-cdp", "story-long-scan", "story-short-scan"];
-  for (const skill of skillsWithDirRef) {
-    const skillMd = path.join(SKILLS_DIR, skill, "SKILL.md");
-    const content = fs.readFileSync(skillMd, "utf-8");
-
-    const dirRefs = content.match(/\{SKILL_DIR\}\/[^\s"`]+/g) || [];
-    for (const ref of dirRefs) {
-      // Replace {SKILL_DIR} with actual path
-      const resolvedPath = ref.replace("{SKILL_DIR}", path.join(SKILLS_DIR, skill));
-      // Normalize path separators
-      const normalized = resolvedPath.replace(/\//g, path.sep);
-      assert(fs.existsSync(normalized),
-        `[${skill}] {SKILL_DIR} ref resolves: ${ref}`);
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1305,11 +1194,11 @@ function testT12() {
     return results;
   }
 
-  const mdFiles = walkMd(AGENTS_DIR);
+  const mdFiles = walkMd(CLAUDE_DIR);
   let redirectCount = 0;
 
   for (const f of mdFiles) {
-    const rel = path.relative(AGENTS_DIR, f);
+    const rel = path.relative(CLAUDE_DIR, f);
     const content = fs.readFileSync(f, "utf-8").trim();
 
     // A redirect file is one that contains ONLY a relative path like ../../xxx/yyy.md
@@ -1430,7 +1319,7 @@ function testT25() {
 function testT26() {
   section("T26: 输出基础目录存在");
 
-  const projectRoot = path.resolve(AGENTS_DIR, "..");
+  const projectRoot = path.resolve(CLAUDE_DIR, "..");
   const dirs = ["scan-data", "analyze-data", "novels"];
 
   for (const dir of dirs) {
@@ -1498,7 +1387,7 @@ function testT28() {
   ];
 
   for (const rel of scrapers) {
-    const content = fs.readFileSync(path.join(AGENTS_DIR, rel), "utf-8");
+    const content = fs.readFileSync(path.join(CLAUDE_DIR, rel), "utf-8");
     const name = path.basename(rel);
 
     assert(content.includes("--outdir"), `${name} supports --outdir parameter`);
@@ -1562,7 +1451,7 @@ console.log("oh-story-claudecode Windows Compatibility Test Suite");
 console.log(`Date: ${new Date().toISOString()}`);
 console.log(`Node: ${process.version}`);
 console.log(`Platform: ${process.platform}`);
-console.log(`Agents dir: ${AGENTS_DIR}`);
+console.log(`Claude dir: ${CLAUDE_DIR}`);
 console.log(`Live CDP: ${LIVE}${LIVE ? ` (port ${PORT})` : ""}`);
 
 testT1();
@@ -1587,8 +1476,6 @@ testT19();
 testT20();
 testT21();
 testT22();
-testT23();
-testT24();
 testT25();
 testT26();
 testT27();
