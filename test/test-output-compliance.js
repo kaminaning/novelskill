@@ -23,8 +23,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const AGENTS_DIR = path.resolve(__dirname, "..", ".agents");
-const SKILLS_DIR = path.join(AGENTS_DIR, "skills");
+const CLAUDE_DIR = path.resolve(__dirname, "..", ".claude");
+const SKILLS_DIR = path.join(CLAUDE_DIR, "skills");
 
 // ---------------------------------------------------------------------------
 // Test runner
