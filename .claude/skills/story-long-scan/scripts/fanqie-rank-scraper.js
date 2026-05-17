@@ -40,12 +40,21 @@ function extractBookList(port) {
   return Array.isArray(list) ? list : [];
 }
 
-/** 批量获取真实书名、作者和简介：用同步 XHR 请求详情页解析 */
+/** 批量获取真实书名、作者和简介：分批用同步 XHR 请求详情页解析（每批 4 本，避免 CDP 超时） */
 function fetchRealTitles(port, bookIds) {
   if (!bookIds.length) return {};
-  const ids = JSON.stringify(bookIds);
-  const js = "JSON.stringify((()=>{const map={};var ids=" + ids + ";ids.forEach(function(id){try{var x=new XMLHttpRequest();x.open('GET','/page/'+id,false);x.send();var tm=x.responseText.match(/<title>([^<]+?)完整版/);var am=x.responseText.match(/\"author\":\"([^\"]+)\"/);var dm=x.responseText.match(/<meta\\s+name=\"description\"\\s+content=\"([^\"]+)\"/);if(!dm)dm=x.responseText.match(/\"abstract\":\"([^\"]{10,}?)\"/);map[id]={title:tm?tm[1]:'',author:am?am[1]:'',desc:dm?dm[1]:''}}catch(e){map[id]={title:'',author:'',desc:''}}});return map})())";
-  return evalJSON(port, js) || {};
+  const BATCH_SIZE = 4;
+  const merged = {};
+  for (let i = 0; i < bookIds.length; i += BATCH_SIZE) {
+    const batch = bookIds.slice(i, i + BATCH_SIZE);
+    const ids = JSON.stringify(batch);
+    const js = "JSON.stringify((()=>{const map={};var ids=" + ids + ";ids.forEach(function(id){try{var x=new XMLHttpRequest();x.open('GET','/page/'+id,false);x.send();var tm=x.responseText.match(/<title>([^<]+?)完整版/);var am=x.responseText.match(/\"author\":\"([^\"]+)\"/);var dm=x.responseText.match(/<meta\\s+name=\"description\"\\s+content=\"([^\"]+)\"/);if(!dm)dm=x.responseText.match(/\"abstract\":\"([^\"]{10,}?)\"/);map[id]={title:tm?tm[1]:'',author:am?am[1]:'',desc:dm?dm[1]:''}}catch(e){map[id]={title:'',author:'',desc:''}}});return map})())";
+    const partial = evalJSON(port, js);
+    if (partial && typeof partial === "object") {
+      Object.assign(merged, partial);
+    }
+  }
+  return merged;
 }
 
 /** 格式化在读数 */
@@ -98,9 +107,15 @@ function scrapeChannel(ch, type) {
   const initCatId = ch === "1" ? "1141" : "1139"; // 男频:西方奇幻 / 女频:古风世情
   const initUrl = `https://fanqienovel.com/rank/${ch}_${type}_${initCatId}`;
   ab(PORT, "open", initUrl);
-  sleep(3000);
+  sleep(6000);
 
-  const categories = extractCategories(PORT, ch, type);
+  let categories = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    categories = extractCategories(PORT, ch, type);
+    if (categories.length) break;
+    console.log(`  品类提取重试 ${attempt + 1}/5...`);
+    sleep(4000);
+  }
   if (!categories.length) {
     console.log(`  ⚠ 未提取到品类，跳过`);
     return null;
@@ -124,10 +139,14 @@ function scrapeChannel(ch, type) {
     console.log(`  [${ci + 1}/${categories.length}] ${cat.name}`);
 
     ab(PORT, "open", `https://fanqienovel.com${cat.href}`);
-    sleep(2500);
+    sleep(4000);
     scrollLoad(PORT, 2);
 
-    const books = extractBookList(PORT);
+    let books = extractBookList(PORT);
+    if (!Array.isArray(books) || !books.length) {
+      sleep(3000);
+      books = extractBookList(PORT);
+    }
     if (!Array.isArray(books) || !books.length) {
       lines.push(`## ${cat.name} — 0 本`, "", "---", "");
       continue;
