@@ -207,7 +207,7 @@ for e in top_new_men:
         hook_categories["问号派(悬念提问)"].append(name)
     elif "……" in name or "..." in name:
         hook_categories["省略号派(留白)"].append(name)
-    elif name.startswith('"') or name.startswith("「"):
+    elif name.startswith('"') or name.startswith("「") or name.startswith('"') or name.startswith('"'):
         hook_categories["对话派(直接引用台词)"].append(name)
     elif re.search(r'\d', name):
         hook_categories["数字派(用数字制造悬念)"].append(name)

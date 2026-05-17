@@ -1,0 +1,38 @@
+# 临时/中间产物 — 不入 git
+# ==================================
+
+# plan skill Phase 3.5 设定补全的中间文件
+**/_phase35_extracted.json
+**/_phase35_conflicts.md
+
+# write skill 临时文风目录(模式 B 实时算文风时落地)
+**/_临时文风/
+
+# write skill 章后自检的临时输出
+**/_章自检/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# analyze-data 历史临时文件(早期版本遗留)
+**/_metrics.json
+**/_calc_style.py
+
+# 脚本生成的中间产物(已有专门的输出文件)
+scripts/_*.md
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 编辑器/系统
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# 日志
+*.log

@@ -17,9 +17,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../../..")).Path
-$Source = Join-Path $RepoRoot ".claude/skills/story-long-explosive-plan/references"
-$Target = Join-Path $RepoRoot ".claude/skills/story-long-explosive-write/references"
+# Layer up from scripts/ -> story-long-explosive-write/ -> skills/ -> .claude/ -> repo root
+$RepoRoot = (Get-Item $PSScriptRoot).Parent.Parent.Parent.Parent.FullName
+$Source = Join-Path $RepoRoot ".claude\skills\story-long-explosive-plan\references"
+$Target = Join-Path $RepoRoot ".claude\skills\story-long-explosive-write\references"
 
 if (-not (Test-Path $Source)) {
     Write-Error "Source dir not found: $Source. plan skill not installed or path is wrong."

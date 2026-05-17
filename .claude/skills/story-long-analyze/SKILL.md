@@ -153,9 +153,40 @@ Stage 0-4 完成后，**先执行 Stage 6 文风分析**，再执行 Stage 5 汇
 - 采样章节：3-10 章原文（覆盖开篇/中段/章末三种节奏）
 - 推荐策略：**前 3 章 + 中段 3 章 + 最近 3 章** = 9 章样本
 
-### 算法(inline,不依赖 explosive-plan skill 存在)
+### 算法 — 调专用脚本(推荐)
 
-> 算法函数直接 inline 在此,避免跨 skill 加载失败时无法执行。完整版本在 [../story-long-explosive-plan/references/fanqie-newbook-style-2026.md](../story-long-explosive-plan/references/fanqie-newbook-style-2026.md) (如果已安装该 skill)。
+**优先调** [scripts/style_analyzer.py](scripts/style_analyzer.py)(自包含,无第三方依赖):
+
+```powershell
+# 用法 1:整本书自动采样 9 章(前 3 + 中 3 + 末 3)
+python .claude/skills/story-long-analyze/scripts/style_analyzer.py "D:/path/to/书.txt"
+
+# 用法 2:指定采样数
+python .claude/skills/story-long-analyze/scripts/style_analyzer.py "D:/path/to/书.txt" --sample 12
+
+# 用法 3:指定输出目录(默认 analyze-data/{书名}/)
+python .claude/skills/story-long-analyze/scripts/style_analyzer.py "D:/path/to/书.txt" --out "analyze-data/{书名}/"
+```
+
+脚本会自动:
+1. 解析 `第X章` 标题切分章节
+2. 采样章节(前/中/末 各 N/3 章)
+3. 对每章跑 `analyze_paragraph_style` 算段落级指标
+4. 汇总均值 + 中位数
+5. 章名钩子分类(7 类)
+6. 抽取标杆段落(开篇/对话/爆点/章末)
+7. 评分(对照番茄风目标)
+8. 输出 `{out}/文风分析.md`
+
+测试样例:
+```powershell
+python .claude/skills/story-long-analyze/scripts/style_analyzer.py "D:/Program Files/tomato/每天六千万，只能在县城花？.txt"
+# → 输出 analyze-data/每天六千万，只能在县城花？/文风分析.md
+```
+
+### 算法核心函数(供其他场景复用)
+
+如果只需要"对单段文字算指标",不调用整脚本,可以从 `scripts/style_analyzer.py` 里导入 `analyze_paragraph_style`,或直接复制下面这个简化版:
 
 ```python
 def analyze_paragraph_style(text):
@@ -194,7 +225,7 @@ def analyze_paragraph_style(text):
     }
 ```
 
-对每个采样章节跑 `analyze_paragraph_style` → 汇总求均值/中位数 → 写入文风分析.md。
+完整版(含章节解析 / 采样 / 汇总 / 钩子分类 / 标杆抽取 / 评分 / markdown 输出)请用 `scripts/style_analyzer.py`。
 
 ### 输出格式
 

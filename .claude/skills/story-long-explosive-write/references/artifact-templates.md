@@ -1,6 +1,6 @@
 # 番茄爆款 Artifact 模板
 
-> 本文档定义 story-long-explosive 所有专属模板。
+> 本文档定义番茄爆款 skill 系列(story-long-explosive-plan + story-long-explosive-write)的专属模板。两个 skill 共用本文件。
 > 通用模板（关系图/世界观等）参考 `../story-long-write/references/artifact-protocols.md`。
 
 ## 目录
@@ -728,7 +728,7 @@
 ```markdown
 # 代入感门控记录
 
-> 本文件记录 story-long-explosive skill 三个硬性门控的执行情况。
+> 本文件记录番茄爆款全部硬性门控的执行情况:plan skill 的门控 1(基线)/ 3.5(设定补全)/ 2(节奏),以及 write skill 的门控 3(章后代入感)。
 > 任何门控失败必须立即修正，不可跳过。
 
 ## 项目信息

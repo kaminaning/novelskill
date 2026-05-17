@@ -173,15 +173,16 @@ novels/{书名}/
 
 | 优先级 | 条件 | 进入 |
 |-------:|------|------|
-| 1 | 番茄爆款档案不存在 | Phase 1(新项目)|
-| 2 | 主角卡 / 反派卡 / 关系.md 缺一个以上 | Phase 2(补设定)|
-| 3 | 门控 1 未 PASS | 门控 1 |
-| 4 | 细纲数 = 0 | Phase 3(生成首批 30 章) |
-| 5 | 细纲数 < 30 且门控 1 已 PASS | 继续 Phase 3 生成 |
-| 6 | 细纲数 ≥ 30 且门控 3.5 未 PASS | Phase 3.5(设定补全) |
-| 7 | 细纲数 ≥ 30 且门控 3.5 PASS 但门控 2 未 PASS | 门控 2 |
-| 8 | 三个门控全 PASS | 提示 → 启动 /story-long-explosive-write |
-| 9 | 用户明说"续生成细纲" | Phase 3.6(细纲续生成,做完重做门控 3.5 + 2) |
+| 1 | `设定/` `大纲/` `追踪/` 全部不存在 | Phase 1(全新项目) |
+| 2 | 番茄爆款档案不存在 但其他文件存在 | 询问用户「项目非本 skill 创建,是否要接管并爆款化?」→ 用户同意 → **进入「接管模式」**(见下方说明);拒绝 → 退出 |
+| 3 | 主角卡 / 反派卡 / 关系.md 缺一个以上 | Phase 2(补设定)|
+| 4 | 门控 1 未 PASS | 门控 1 |
+| 5 | 细纲数 = 0 | Phase 3(生成首批 30 章) |
+| 6 | 细纲数 < 30 且门控 1 已 PASS | 继续 Phase 3 生成 |
+| 7 | 细纲数 ≥ 30 且门控 3.5 未 PASS | Phase 3.5(设定补全) |
+| 8 | 细纲数 ≥ 30 且门控 3.5 PASS 但门控 2 未 PASS | 门控 2 |
+| 9 | 三个门控全 PASS | 提示 → 启动 /story-long-explosive-write |
+| 10 | 用户明说"续生成细纲" | Phase 3.6(细纲续生成,做完重做门控 3.5 + 2) |
 
 ### 上下文加载优先级
 
@@ -203,6 +204,32 @@ novels/{书名}/
 13. `analyze-data/{对标书名}/文风分析.md`(分支 B 如已 analyze 过)
 
 **Reference 加载**(按需):详见末尾「参考资料」章节。
+
+### 接管模式(状态路由优先级 2 触发)
+
+当用户已有 `novels/{书名}/` 项目但**非本 skill 创建**(没有 `番茄爆款档案.md`)、并且用户同意接管时,执行以下步骤(**不重做已有产物**):
+
+**步骤 1:盘点已有资产**
+- `glob 设定/角色/*.md` → 列出已有角色卡(可能是 story-long-write 创建的)
+- `glob 设定/势力/*.md` `设定/世界观/*.md` `大纲/*.md` → 列出已有大纲/细纲
+- 读 `设定/题材定位.md` `设定/书名与简介.md`(如有)
+
+**步骤 2:报告给用户**
+> 「接管模式启动。检测到本项目已有:角色卡 X 张 / 细纲 Y 章 / ...。接下来我会:
+> 1. 跳过 Phase 1.1-1.2(题材/性别向已定)
+> 2. 进 Phase 2.2 八元注入(在已有主角卡基础上加'极端化算子')
+> 3. 创建 `设定/番茄爆款档案.md`
+> 4. 强制走门控 1(代入感基线)
+> 5. 如细纲已存在,跳过 Phase 3 直接进 Phase 3.5 设定补全门控;若细纲 < 30 章,补到 30 章
+> 6. 走门控 2 → 衔接 write skill」
+
+**步骤 3:跳到 Phase 2.2**(八元注入),把已有主角卡作为输入。Phase 2.1 通用设定**只补缺失字段**,不改已有字段。
+
+**步骤 4:门控 1 必须重做**(无论已有设定多完整),理由:旧设定可能不符合"极端化 vs 代入感"标准。
+
+**步骤 5:之后按正常状态路由优先级 3-10 走**(主角卡/反派卡缺补 → Phase 2,细纲缺补 → Phase 3,等)。
+
+> **接管模式与新项目的关键区别**:Phase 1 完整跳过;Phase 2.1 是"补"不是"重写";其他 phase 不变。
 
 ---
 
@@ -845,7 +872,7 @@ write skill 启动时会:
 | [references/explosive-opening-hooks.md](references/explosive-opening-hooks.md) | ⭐ Phase 3 前 3 章细纲时(必加载) |
 | [references/pacing-amplifier.md](references/pacing-amplifier.md) | Phase 3 大纲节奏 |
 | [references/artifact-templates.md](references/artifact-templates.md) | Phase 2-3.6 创建 artifact 时 |
-| [references/fanqie-newbook-style-2026.md](references/fanqie-newbook-style-2026.md) | 主要由 write skill 使用,本 skill Phase 1 可用作题材市场概览 |
+| [references/fanqie-newbook-style-2026.md](references/fanqie-newbook-style-2026.md) | 主要由 write skill 使用。本 skill 不直接加载(题材市场概览见 tomato-trends-2026.md) |
 | [references/tomato-platform-rules.md](references/tomato-platform-rules.md) | 主要由 write skill 使用,本 skill Phase 1 可用作平台决策参考 |
 | [references/tomato-quality-gate.md](references/tomato-quality-gate.md) | 主要由 write skill 使用 |
 
